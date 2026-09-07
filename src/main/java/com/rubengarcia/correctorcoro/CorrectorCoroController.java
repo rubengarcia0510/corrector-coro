@@ -24,15 +24,18 @@ public class CorrectorCoroController {
     private final ComparadorDeCoro comparadorDeCoro;
     private final PitchExtractor pitchExtractor;
     private final AnalizadorAfinacionAbsoluta analizadorAfinacionAbsoluta;
+    private final ChromaIntonationAnalyzer chromaIntonationAnalyzer;
 
     public CorrectorCoroController(
             ComparadorDeCoro comparadorDeCoro,
             PitchExtractor pitchExtractor,
-            AnalizadorAfinacionAbsoluta analizadorAfinacionAbsoluta
+            AnalizadorAfinacionAbsoluta analizadorAfinacionAbsoluta,
+            ChromaIntonationAnalyzer chromaIntonationAnalyzer
     ) {
         this.comparadorDeCoro = comparadorDeCoro;
         this.pitchExtractor = pitchExtractor;
         this.analizadorAfinacionAbsoluta = analizadorAfinacionAbsoluta;
+        this.chromaIntonationAnalyzer = chromaIntonationAnalyzer;
     }
 
     /**
@@ -93,6 +96,29 @@ public class CorrectorCoroController {
 
         try {
             List<ErrorDesafinacion> errores = comparadorDeCoro.compararArchivos(archivoReferencia, archivoEnsayo);
+            return ResponseEntity.ok(errores);
+        } finally {
+            archivoReferencia.delete();
+            archivoEnsayo.delete();
+        }
+    }
+
+    @PostMapping("/spike/chroma-comparar")
+    public ResponseEntity<List<ChromaIntonationError>> compararChroma(
+            @RequestParam("referencia") MultipartFile referencia,
+            @RequestParam("ensayo") MultipartFile ensayo
+    ) throws Exception {
+
+        File archivoReferencia = aArchivoTemporal(referencia, "referencia");
+        File archivoEnsayo = aArchivoTemporal(ensayo, "ensayo");
+
+        try {
+            List<ChromaIntonationError> errores =
+                    chromaIntonationAnalyzer.analyze(
+                            archivoReferencia,
+                            archivoEnsayo
+                    );
+
             return ResponseEntity.ok(errores);
         } finally {
             archivoReferencia.delete();
