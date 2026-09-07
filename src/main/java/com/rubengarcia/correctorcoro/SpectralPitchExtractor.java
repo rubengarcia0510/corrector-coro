@@ -160,8 +160,23 @@ public class SpectralPitchExtractor {
                                     ).reversed()
                             );
 
+                            List<SpectralPitch> fundamentalPeaks =
+                                    suppressHarmonics(peaks);
+
+                            double maxMagnitude =
+                                    fundamentalPeaks.stream()
+                                            .mapToDouble(SpectralPitch::magnitude)
+                                            .max()
+                                            .orElse(0.0);
+
+                            double minimumMagnitude =
+                                    maxMagnitude * 0.01;
+
                             List<SpectralPitch> topPeaks =
-                                    peaks.stream()
+                                    fundamentalPeaks.stream()
+                                            .filter(p ->
+                                                    p.magnitude() >=
+                                                            minimumMagnitude)
                                             .limit(20)
                                             .toList();
 
@@ -193,4 +208,49 @@ public class SpectralPitchExtractor {
             );
         }
     }
+
+    private List<SpectralPitch> suppressHarmonics(
+            List<SpectralPitch> sortedPeaks
+    ) {
+        List<SpectralPitch> fundamentals = new ArrayList<>();
+
+        for (SpectralPitch candidate : sortedPeaks) {
+            boolean harmonic = false;
+
+            for (SpectralPitch fundamental : fundamentals) {
+                double ratio =
+                        candidate.frequencyHz()
+                                / fundamental.frequencyHz();
+
+                int harmonicNumber = (int) Math.round(ratio);
+
+                if (harmonicNumber >= 2 && harmonicNumber <= 8) {
+                    double expectedFrequency =
+                            fundamental.frequencyHz() * harmonicNumber;
+
+                    double cents =
+                            Math.abs(
+                                    1200.0 *
+                                    Math.log(
+                                            candidate.frequencyHz()
+                                                    / expectedFrequency
+                                    ) /
+                                    Math.log(2.0)
+                            );
+
+                    if (cents <= 35.0) {
+                        harmonic = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!harmonic) {
+                fundamentals.add(candidate);
+            }
+        }
+
+        return fundamentals;
+    }
+
 }

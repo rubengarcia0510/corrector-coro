@@ -72,6 +72,64 @@ class SpectralPitchExtractorTest {
         }
     }
 
+
+    @Test
+    void debeDistinguirPicosSignificativosDeRuido() throws Exception {
+
+        File wav = crearAcorde(
+                261.63,
+                329.63,
+                392.00
+        );
+
+        try {
+            SpectralPitchExtractor extractor =
+                    new SpectralPitchExtractor();
+
+            List<SpectralFrame> frames =
+                    extractor.extract(wav);
+
+            SpectralFrame frame =
+                    frames.get(frames.size() / 2);
+
+            List<SpectralPitch> peaks =
+                    frame.peaks();
+
+            double maxMagnitude =
+                    peaks.stream()
+                            .mapToDouble(SpectralPitch::magnitude)
+                            .max()
+                            .orElse(0.0);
+
+            long significantPeaks =
+                    peaks.stream()
+                            .filter(p ->
+                                    p.magnitude() >=
+                                    maxMagnitude * 0.01
+                            )
+                            .count();
+
+            System.out.printf(
+                    "Max magnitude: %.4f%n",
+                    maxMagnitude
+            );
+
+            System.out.printf(
+                    "Significant peaks (>=1%%): %d%n",
+                    significantPeaks
+            );
+
+            assertTrue(
+                    significantPeaks >= 3,
+                    "Debe conservar al menos las 3 fundamentales"
+            );
+
+        } finally {
+            wav.delete();
+        }
+    }
+
+
     private double cents(
             List<SpectralPitch> peaks,
             double expected) {
