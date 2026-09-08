@@ -40,6 +40,7 @@ class RealAudioPolyphonicCharacterizationTest {
         printRealAudioMatches(referenceFrames, performanceFrames);
         printDtwTemporalCharacterization();
         printDtwOffsetProfile();
+        printDtwFineOffsetProfile();
         printRealAudioDtwMatches(referenceFrames, performanceFrames);
 
         System.out.println("==================================================");
@@ -205,6 +206,52 @@ class RealAudioPolyphonicCharacterizationTest {
 
                 System.out.printf(
                         "ref=%.3fs -> perf=%.3fs offset=%+.3fs dtwDistance=%.4f%n",
+                        best.referenceTimestampSec(),
+                        best.performanceTimestampSec(),
+                        offset,
+                        best.distance()
+                );
+            }
+        }
+    }
+
+
+    private void printDtwFineOffsetProfile() {
+        TarsosChromaExtractor chromaExtractor = new TarsosChromaExtractor();
+        ChromaDtwAligner dtwAligner = new ChromaDtwAligner();
+
+        List<ChromaFrame> reference =
+                chromaExtractor.extract(new File("regina-ref-30s.wav"));
+        List<ChromaFrame> performance =
+                chromaExtractor.extract(new File("regina-flores-30s.wav"));
+
+        List<ChromaDtwAligner.ChromaAlignment> alignments =
+                dtwAligner.align(reference, performance);
+
+        System.out.println("---- DTW FINE OFFSET PROFILE ----");
+
+        for (int second = 0; second <= 29; second++) {
+            ChromaDtwAligner.ChromaAlignment best = null;
+            double bestDistance = Double.POSITIVE_INFINITY;
+
+            for (ChromaDtwAligner.ChromaAlignment alignment : alignments) {
+                double distance = Math.abs(
+                        alignment.referenceTimestampSec() - second
+                );
+
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = alignment;
+                }
+            }
+
+            if (best != null) {
+                double offset =
+                        best.performanceTimestampSec()
+                                - best.referenceTimestampSec();
+
+                System.out.printf(
+                        "ref=%5.2fs -> perf=%5.2fs offset=%+6.3fs dtwDistance=%.4f%n",
                         best.referenceTimestampSec(),
                         best.performanceTimestampSec(),
                         offset,
