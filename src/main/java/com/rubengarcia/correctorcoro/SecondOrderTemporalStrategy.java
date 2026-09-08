@@ -12,7 +12,7 @@ public class SecondOrderTemporalStrategy implements AlignmentStrategy {
     private static final double SEGMENT_SIZE_SEC = 4.0;
     private static final double SEARCH_RANGE_SEC = 4.0;
     private static final double OFFSET_STEP_SEC = 0.05;
-    private static final double LAMBDA = 0.05;
+    private static final double LAMBDA = 0.01;
 
     @Override
     public AlignmentResult align(
