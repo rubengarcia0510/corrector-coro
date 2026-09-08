@@ -7,3 +7,6 @@ target/
 .settings/
 *.log
 .DS_Store
+
+# Real audio test files
+*.wav

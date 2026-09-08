@@ -58,25 +58,25 @@ public class ChromaDtwAligner {
 
         while (i > 0 && j > 0) {
 
-            ChromaFrame referenceFrame = reference.get(i - 1);
-            ChromaFrame performanceFrame = performance.get(j - 1);
-
-            double distance = cosineDistance(
-                    referenceFrame.chroma(),
-                    performanceFrame.chroma()
-            );
-
-            path.add(new ChromaAlignment(
-                    referenceFrame.timestampSec(),
-                    performanceFrame.timestampSec(),
-                    distance
-            ));
-
             double diagonal = cost[i - 1][j - 1];
             double up = cost[i - 1][j];
             double left = cost[i][j - 1];
 
             if (diagonal <= up && diagonal <= left) {
+                ChromaFrame referenceFrame = reference.get(i - 1);
+                ChromaFrame performanceFrame = performance.get(j - 1);
+
+                double distance = cosineDistance(
+                        referenceFrame.chroma(),
+                        performanceFrame.chroma()
+                );
+
+                path.add(new ChromaAlignment(
+                        referenceFrame.timestampSec(),
+                        performanceFrame.timestampSec(),
+                        distance
+                ));
+
                 i--;
                 j--;
             } else if (up <= left) {
