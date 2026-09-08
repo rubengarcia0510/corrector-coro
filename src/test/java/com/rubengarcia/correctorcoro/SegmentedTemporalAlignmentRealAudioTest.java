@@ -65,7 +65,7 @@ class SegmentedTemporalAlignmentRealAudioTest {
         };
 
         double segmentDurationSec = 4.0;
-        double searchRangeSec = 2.0;
+        double searchRangeSec = 4.0;
         double searchStepSec = frameStepSec;
 
         for (double segmentStart : segmentStarts) {
