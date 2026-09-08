@@ -216,7 +216,7 @@ class SegmentOffsetGlobalOptimizationRealAudioTest {
                             );
 
                     double transitionCost =
-                            lambda * offsetChange;
+                            lambda * offsetChange * offsetChange;
 
                     double candidateCost =
                             costs.get(segment - 1)[previousIndex]
