@@ -11,6 +11,7 @@ import java.util.Locale;
 class OffsetConstrainedChromaDtwRealAudioTest {
 
     private static final double GLOBAL_OFFSET_SEC = 0.700;
+    private static final double FRAME_STEP_SEC = 512.0 / 22050.0;
 
     private static final double REGRESSION_SLOPE = 0.8961;
     private static final double REGRESSION_INTERCEPT = 1.4784;
@@ -171,6 +172,11 @@ class OffsetConstrainedChromaDtwRealAudioTest {
         );
 
         printOffsetProfile(result.alignments());
+
+        runTemporalPenaltyExperiment(
+                reference,
+                shiftedPerformance
+        );
 
         printRegressionDeviationProfile(
                 result.alignments()
@@ -910,6 +916,181 @@ class OffsetConstrainedChromaDtwRealAudioTest {
                 );
             }
         }
+    }
+
+    private void runTemporalPenaltyExperiment(
+            List<ChromaFrame> reference,
+            List<ChromaFrame> performance) {
+
+        System.out.println("---- DTW TEMPORAL PENALTY EXPERIMENT ----");
+
+        double[] lambdas = {
+                0.01,
+                0.05,
+                0.10,
+                0.20,
+                0.50
+        };
+
+        for (double lambda : lambdas) {
+
+            Result result =
+                    alignWithTemporalPenalty(
+                            reference,
+                            performance,
+                            lambda
+                    );
+
+            double totalAbsOffset = 0.0;
+            int within60ms = 0;
+
+            for (Alignment alignment : result.alignments()) {
+
+                double offset =
+                        alignment.performanceTime()
+                                - alignment.referenceTime();
+
+                double absOffset =
+                        Math.abs(offset);
+
+                totalAbsOffset += absOffset;
+
+                if (absOffset <= 0.060) {
+                    within60ms++;
+                }
+            }
+
+            double averageAbsOffset =
+                    result.alignments().isEmpty()
+                            ? 0.0
+                            : totalAbsOffset
+                                    / result.alignments().size();
+
+            System.out.printf(
+                    Locale.US,
+                    "lambda=%.2f alignments=%d within60ms=%d (%.1f%%) avgAbsOffset=%.3fs avgDistance=%.4f%n",
+                    lambda,
+                    result.alignments().size(),
+                    within60ms,
+                    result.alignments().isEmpty()
+                            ? 0.0
+                            : 100.0 * within60ms
+                                    / result.alignments().size(),
+                    averageAbsOffset,
+                    result.averageDistance()
+            );
+        }
+    }
+
+    private Result alignWithTemporalPenalty(
+            List<ChromaFrame> reference,
+            List<ChromaFrame> performance,
+            double lambda) {
+
+        int n = reference.size();
+        int m = performance.size();
+
+        double[][] cost =
+                new double[n + 1][m + 1];
+
+        for (int i = 0; i <= n; i++) {
+            java.util.Arrays.fill(
+                    cost[i],
+                    Double.POSITIVE_INFINITY
+            );
+        }
+
+        cost[0][0] = 0.0;
+
+        for (int i = 1; i <= n; i++) {
+            for (int j = 1; j <= m; j++) {
+
+                double distance =
+                        cosineDistance(
+                                reference.get(i - 1).chroma(),
+                                performance.get(j - 1).chroma()
+                        );
+
+                double temporalDeviation =
+                        Math.abs((j - 1) - (i - 1))
+                                * FRAME_STEP_SEC;
+
+                double temporalPenalty =
+                        lambda * temporalDeviation;
+
+                double previous =
+                        Math.min(
+                                cost[i - 1][j - 1],
+                                Math.min(
+                                        cost[i - 1][j],
+                                        cost[i][j - 1]
+                                )
+                        );
+
+                if (Double.isFinite(previous)) {
+                    cost[i][j] =
+                            distance
+                                    + temporalPenalty
+                                    + previous;
+                }
+            }
+        }
+
+        List<Alignment> path =
+                new ArrayList<>();
+
+        int i = n;
+        int j = m;
+
+        while (i > 0 && j > 0) {
+
+            path.add(
+                    new Alignment(
+                            reference.get(i - 1).timestampSec(),
+                            performance.get(j - 1).timestampSec(),
+                            cosineDistance(
+                                    reference.get(i - 1).chroma(),
+                                    performance.get(j - 1).chroma()
+                            )
+                    )
+            );
+
+            double diagonal =
+                    cost[i - 1][j - 1];
+
+            double up =
+                    cost[i - 1][j];
+
+            double left =
+                    cost[i][j - 1];
+
+            if (diagonal <= up && diagonal <= left) {
+                i--;
+                j--;
+            } else if (up <= left) {
+                i--;
+            } else {
+                j--;
+            }
+        }
+
+        Collections.reverse(path);
+
+        double totalDistance = 0.0;
+
+        for (Alignment alignment : path) {
+            totalDistance += alignment.distance();
+        }
+
+        double averageDistance =
+                path.isEmpty()
+                        ? 0.0
+                        : totalDistance / path.size();
+
+        return new Result(
+                path,
+                averageDistance
+        );
     }
 
     private double cosineDistance(
