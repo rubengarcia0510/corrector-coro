@@ -21,8 +21,8 @@ class ConstrainedChromaDtwRealAudioTest {
         List<ChromaFrame> reference = extractor.extract(referenceFile);
         List<ChromaFrame> performance = extractor.extract(performanceFile);
 
-        double frameStepSec = reference.size() > 1
-                ? reference.get(1).timestampSec() - reference.get(0).timestampSec()
+        double frameStepSec = reference.size() > 2
+                ? reference.get(2).timestampSec() - reference.get(1).timestampSec()
                 : 0.0;
 
         System.out.printf(
