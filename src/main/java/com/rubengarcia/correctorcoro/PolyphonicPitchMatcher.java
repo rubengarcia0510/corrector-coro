@@ -3,10 +3,7 @@ package com.rubengarcia.correctorcoro;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Component
 public class PolyphonicPitchMatcher {
@@ -29,83 +26,132 @@ public class PolyphonicPitchMatcher {
             return List.of();
         }
 
-        List<PolyphonicPitchMatch> matches =
-                new ArrayList<>();
+        SearchResult best = search(
+                referencePeaks,
+                performancePeaks,
+                0,
+                new boolean[performancePeaks.size()],
+                new ArrayList<>(),
+                0.0
+        );
 
-        Set<Integer> usedPerformancePeaks =
-                new HashSet<>();
+        return best.matches;
+    }
+
+    private SearchResult search(
+            List<SpectralPitch> references,
+            List<SpectralPitch> performances,
+            int referenceIndex,
+            boolean[] used,
+            List<PolyphonicPitchMatch> currentMatches,
+            double currentCost) {
+
+        if (referenceIndex >= references.size()) {
+            return new SearchResult(
+                    new ArrayList<>(currentMatches),
+                    currentCost
+            );
+        }
+
+        SpectralPitch reference =
+                references.get(referenceIndex);
+
+        SearchResult best = null;
 
         /*
-         * Procesamos los picos de referencia de mayor magnitud
-         * primero. Esto ayuda a priorizar componentes fuertes.
+         * Opción 1: no asignar ninguna performance a esta referencia.
          */
-        List<SpectralPitch> references =
-                referencePeaks.stream()
-                        .sorted(
-                                Comparator.comparingDouble(
-                                        SpectralPitch::magnitude
-                                ).reversed()
-                        )
-                        .toList();
+        SearchResult skipped = search(
+                references,
+                performances,
+                referenceIndex + 1,
+                used,
+                currentMatches,
+                currentCost
+        );
 
-        for (SpectralPitch reference : references) {
+        best = skipped;
 
-            SpectralPitch best =
-                    null;
+        /*
+         * Opción 2: probar cada performance disponible
+         * dentro del límite musical permitido.
+         */
+        for (int i = 0; i < performances.size(); i++) {
 
-            double bestAbsCents =
-                    Double.MAX_VALUE;
-
-            int bestIndex =
-                    -1;
-
-            for (int i = 0;
-                 i < performancePeaks.size();
-                 i++) {
-
-                if (usedPerformancePeaks.contains(i)) {
-                    continue;
-                }
-
-                SpectralPitch performance =
-                        performancePeaks.get(i);
-
-                double cents =
-                        calculateCents(
-                                reference.frequencyHz(),
-                                performance.frequencyHz()
-                        );
-
-                double absCents =
-                        Math.abs(cents);
-
-                if (absCents <= MAX_MATCH_CENTS &&
-                        absCents < bestAbsCents) {
-
-                    best = performance;
-                    bestAbsCents = absCents;
-                    bestIndex = i;
-                }
+            if (used[i]) {
+                continue;
             }
 
-            if (best != null) {
+            SpectralPitch performance =
+                    performances.get(i);
 
-                usedPerformancePeaks.add(bestIndex);
+            double cents =
+                    calculateCents(
+                            reference.frequencyHz(),
+                            performance.frequencyHz()
+                    );
 
-                matches.add(
-                        new PolyphonicPitchMatch(
-                                reference.frequencyHz(),
-                                best.frequencyHz(),
-                                calculateCents(
-                                        reference.frequencyHz(),
-                                        best.frequencyHz()
-                                )
-                        )
-                );
+            double absCents = Math.abs(cents);
+
+            if (absCents > MAX_MATCH_CENTS) {
+                continue;
+            }
+
+            used[i] = true;
+
+            currentMatches.add(
+                    new PolyphonicPitchMatch(
+                            reference.frequencyHz(),
+                            performance.frequencyHz(),
+                            cents
+                    )
+            );
+
+            SearchResult candidate = search(
+                    references,
+                    performances,
+                    referenceIndex + 1,
+                    used,
+                    currentMatches,
+                    currentCost + absCents
+            );
+
+            currentMatches.remove(currentMatches.size() - 1);
+            used[i] = false;
+
+            if (isBetter(candidate, best)) {
+                best = candidate;
             }
         }
 
-        return matches;
+        return best;
+    }
+
+    private boolean isBetter(
+            SearchResult candidate,
+            SearchResult currentBest) {
+
+        if (candidate == null) {
+            return false;
+        }
+
+        if (currentBest == null) {
+            return true;
+        }
+
+        /*
+         * Primero maximizamos la cantidad de matches.
+         * En caso de empate, minimizamos la distancia
+         * total en cents.
+         */
+        if (candidate.matches.size() !=
+                currentBest.matches.size()) {
+
+            return candidate.matches.size() >
+                    currentBest.matches.size();
+        }
+
+        return candidate.cost < currentBest.cost;
     }
 
     private double calculateCents(
@@ -116,7 +162,21 @@ public class PolyphonicPitchMatcher {
                 Math.log(
                         performanceFrequency /
                                 referenceFrequency
-                )
-                / Math.log(2.0);
+                ) /
+                Math.log(2.0);
+    }
+
+    private static class SearchResult {
+
+        private final List<PolyphonicPitchMatch> matches;
+        private final double cost;
+
+        private SearchResult(
+                List<PolyphonicPitchMatch> matches,
+                double cost) {
+
+            this.matches = matches;
+            this.cost = cost;
+        }
     }
 }

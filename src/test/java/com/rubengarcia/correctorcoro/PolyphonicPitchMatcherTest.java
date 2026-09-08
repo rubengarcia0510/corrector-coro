@@ -90,4 +90,49 @@ class PolyphonicPitchMatcherTest {
 
         assertTrue(matches.isEmpty());
     }
+
+    @Test
+    void debeElegirLaAsignacionGlobalYNoLaGreedy() {
+
+        List<SpectralPitch> referencia =
+                List.of(
+                        new SpectralPitch(532.0, 120.0),
+                        new SpectralPitch(530.0, 110.0),
+                        new SpectralPitch(598.0, 100.0)
+                );
+
+        List<SpectralPitch> ensayo =
+                List.of(
+                        new SpectralPitch(549.0, 120.0),
+                        new SpectralPitch(520.0, 110.0),
+                        new SpectralPitch(580.0, 100.0)
+                );
+
+        PolyphonicPitchMatcher matcher =
+                new PolyphonicPitchMatcher();
+
+        List<PolyphonicPitchMatch> matches =
+                matcher.match(
+                        referencia,
+                        ensayo
+                );
+
+        assertEquals(3, matches.size());
+
+        assertTrue(matches.stream().anyMatch(match ->
+                Math.abs(match.referenceFrequencyHz() - 532.0) < 0.01 &&
+                Math.abs(match.performanceFrequencyHz() - 549.0) < 0.01
+        ));
+
+        assertTrue(matches.stream().anyMatch(match ->
+                Math.abs(match.referenceFrequencyHz() - 530.0) < 0.01 &&
+                Math.abs(match.performanceFrequencyHz() - 520.0) < 0.01
+        ));
+
+        assertTrue(matches.stream().anyMatch(match ->
+                Math.abs(match.referenceFrequencyHz() - 598.0) < 0.01 &&
+                Math.abs(match.performanceFrequencyHz() - 580.0) < 0.01
+        ));
+    }
+
 }
