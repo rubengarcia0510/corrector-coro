@@ -10,10 +10,10 @@ import java.util.Locale;
 
 class OffsetConstrainedChromaDtwRealAudioTest {
 
-    private static final double INITIAL_OFFSET_SEC = 0.700;
+    private static final double GLOBAL_OFFSET_SEC = 0.700;
 
     @Test
-    void characterizeOffsetConstrainedDtwOnRealAudio() {
+    void characterizeDtwAfterGlobalOffsetCompensation() {
         File referenceFile = new File("regina-ref-30s.wav");
         File performanceFile = new File("regina-flores-30s.wav");
 
@@ -26,66 +26,77 @@ class OffsetConstrainedChromaDtwRealAudioTest {
                 reference.get(2).timestampSec()
                         - reference.get(1).timestampSec();
 
-        System.out.println("---- OFFSET-CONSTRAINED CHROMA DTW ----");
+        List<ChromaFrame> shiftedPerformance =
+                performance.stream()
+                        .filter(frame ->
+                                frame.timestampSec()
+                                        >= GLOBAL_OFFSET_SEC)
+                        .map(frame ->
+                                new ChromaFrame(
+                                        frame.timestampSec()
+                                                - GLOBAL_OFFSET_SEC,
+                                        frame.chroma()
+                                ))
+                        .toList();
 
-        for (double bandSec : new double[]{0.100, 0.250, 0.500}) {
-            Result result = align(
-                    reference,
-                    performance,
-                    frameStepSec,
-                    INITIAL_OFFSET_SEC,
-                    bandSec
-            );
+        System.out.printf(
+                Locale.US,
+                "referenceFrames=%d shiftedPerformanceFrames=%d offset=%.3fs frameStep=%.5fs%n",
+                reference.size(),
+                shiftedPerformance.size(),
+                GLOBAL_OFFSET_SEC,
+                frameStepSec
+        );
 
-            int within60ms = 0;
-            double totalAbsOffset = 0.0;
-            double maxAbsOffset = 0.0;
+        Result result =
+                align(reference, shiftedPerformance);
 
-            for (Alignment alignment : result.alignments()) {
-                double offset =
-                        alignment.performanceTime()
-                                - alignment.referenceTime();
+        double totalAbsOffset = 0.0;
+        double maxAbsOffset = 0.0;
+        int within60ms = 0;
 
-                double absOffset = Math.abs(offset);
+        for (Alignment alignment : result.alignments()) {
+            double offset =
+                    alignment.performanceTime()
+                            - alignment.referenceTime();
 
-                totalAbsOffset += absOffset;
-                maxAbsOffset = Math.max(maxAbsOffset, absOffset);
+            double absOffset = Math.abs(offset);
 
-                if (absOffset <= 0.060) {
-                    within60ms++;
-                }
+            totalAbsOffset += absOffset;
+            maxAbsOffset = Math.max(maxAbsOffset, absOffset);
+
+            if (absOffset <= 0.060) {
+                within60ms++;
             }
-
-            double averageAbsOffset =
-                    result.alignments().isEmpty()
-                            ? 0.0
-                            : totalAbsOffset / result.alignments().size();
-
-            System.out.printf(
-                    Locale.US,
-                    "band=%.3fs alignments=%d within60ms=%d (%.1f%%) " +
-                            "avgAbsOffset=%.3fs maxAbsOffset=%.3fs avgDistance=%.4f%n",
-                    bandSec,
-                    result.alignments().size(),
-                    within60ms,
-                    result.alignments().isEmpty()
-                            ? 0.0
-                            : 100.0 * within60ms / result.alignments().size(),
-                    averageAbsOffset,
-                    maxAbsOffset,
-                    result.averageDistance()
-            );
-
-            printOffsetProfile(result.alignments());
         }
+
+        double averageAbsOffset =
+                result.alignments().isEmpty()
+                        ? 0.0
+                        : totalAbsOffset / result.alignments().size();
+
+        System.out.println("---- DTW AFTER GLOBAL OFFSET COMPENSATION ----");
+
+        System.out.printf(
+                Locale.US,
+                "alignments=%d within60ms=%d (%.1f%%) " +
+                        "avgAbsOffset=%.3fs maxAbsOffset=%.3fs avgDistance=%.4f%n",
+                result.alignments().size(),
+                within60ms,
+                result.alignments().isEmpty()
+                        ? 0.0
+                        : 100.0 * within60ms / result.alignments().size(),
+                averageAbsOffset,
+                maxAbsOffset,
+                result.averageDistance()
+        );
+
+        printOffsetProfile(result.alignments());
     }
 
     private Result align(
             List<ChromaFrame> reference,
-            List<ChromaFrame> performance,
-            double frameStepSec,
-            double initialOffsetSec,
-            double bandSec) {
+            List<ChromaFrame> performance) {
 
         int n = reference.size();
         int m = performance.size();
@@ -102,51 +113,8 @@ class OffsetConstrainedChromaDtwRealAudioTest {
 
         cost[0][0] = 0.0;
 
-        double referenceDuration =
-                reference.get(n - 1).timestampSec();
-
-        double performanceDuration =
-                performance.get(m - 1).timestampSec();
-
         for (int i = 1; i <= n; i++) {
-            double referenceTime =
-                    reference.get(i - 1).timestampSec();
-
-            /*
-             * Expected path:
-             *
-             *   start near +700 ms
-             *   finish at the natural end of both recordings.
-             *
-             * This prevents the +700 ms offset from being
-             * incorrectly required at the final frame.
-             */
-            double progress =
-                    referenceDuration == 0.0
-                            ? 0.0
-                            : referenceTime / referenceDuration;
-
-            double expectedPerformanceTime =
-                    referenceTime
-                            + INITIAL_OFFSET_SEC * (1.0 - progress);
-
-            int expectedJ =
-                    (int) Math.round(
-                            expectedPerformanceTime / frameStepSec
-                    );
-
-            int radius =
-                    (int) Math.ceil(
-                            bandSec / frameStepSec
-                    );
-
-            int minJ =
-                    Math.max(1, expectedJ - radius);
-
-            int maxJ =
-                    Math.min(m, expectedJ + radius);
-
-            for (int j = minJ; j <= maxJ; j++) {
+            for (int j = 1; j <= m; j++) {
 
                 double distance =
                         cosineDistance(
@@ -175,13 +143,6 @@ class OffsetConstrainedChromaDtwRealAudioTest {
 
         int i = n;
         int j = m;
-
-        if (!Double.isFinite(cost[i][j])) {
-            return new Result(
-                    Collections.emptyList(),
-                    0.0
-            );
-        }
 
         while (i > 0 && j > 0) {
 
@@ -223,20 +184,13 @@ class OffsetConstrainedChromaDtwRealAudioTest {
                         ? 0.0
                         : totalDistance / path.size();
 
-        return new Result(
-                path,
-                averageDistance
-        );
+        return new Result(path, averageDistance);
     }
 
     private void printOffsetProfile(
             List<Alignment> alignments) {
 
-        if (alignments.isEmpty()) {
-            return;
-        }
-
-        System.out.println("  offset profile:");
+        System.out.println("---- OFFSET PROFILE ----");
 
         for (double targetTime = 2.0;
              targetTime <= 28.0;
@@ -268,7 +222,7 @@ class OffsetConstrainedChromaDtwRealAudioTest {
 
                 System.out.printf(
                         Locale.US,
-                        "    ref=%5.2fs -> perf=%5.2fs offset=%+6.3fs distance=%.4f%n",
+                        "ref=%5.2fs -> perf=%5.2fs offset=%+6.3fs distance=%.4f%n",
                         nearest.referenceTime(),
                         nearest.performanceTime(),
                         offset,
