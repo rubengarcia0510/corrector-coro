@@ -39,6 +39,7 @@ class RealAudioPolyphonicCharacterizationTest {
         printThreeFrameStability("PERFORMANCE", performanceFrames);
         printRealAudioMatches(referenceFrames, performanceFrames);
         printDtwTemporalCharacterization();
+        printDtwOffsetProfile();
         printRealAudioDtwMatches(referenceFrames, performanceFrames);
 
         System.out.println("==================================================");
@@ -166,6 +167,52 @@ class RealAudioPolyphonicCharacterizationTest {
         return bestIndex;
     }
 
+
+
+    private void printDtwOffsetProfile() {
+        TarsosChromaExtractor chromaExtractor = new TarsosChromaExtractor();
+        ChromaDtwAligner dtwAligner = new ChromaDtwAligner();
+
+        List<ChromaFrame> reference = chromaExtractor.extract(new File("regina-ref-30s.wav"));
+        List<ChromaFrame> performance = chromaExtractor.extract(new File("regina-flores-30s.wav"));
+
+        List<ChromaDtwAligner.ChromaAlignment> alignments =
+                dtwAligner.align(reference, performance);
+
+        double[] checkpoints = {0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 29.0};
+
+        System.out.println("---- DTW OFFSET PROFILE ----");
+
+        for (double checkpoint : checkpoints) {
+            ChromaDtwAligner.ChromaAlignment best = null;
+            double bestDistance = Double.POSITIVE_INFINITY;
+
+            for (ChromaDtwAligner.ChromaAlignment alignment : alignments) {
+                double distance = Math.abs(
+                        alignment.referenceTimestampSec() - checkpoint
+                );
+
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = alignment;
+                }
+            }
+
+            if (best != null) {
+                double offset =
+                        best.performanceTimestampSec()
+                                - best.referenceTimestampSec();
+
+                System.out.printf(
+                        "ref=%.3fs -> perf=%.3fs offset=%+.3fs dtwDistance=%.4f%n",
+                        best.referenceTimestampSec(),
+                        best.performanceTimestampSec(),
+                        offset,
+                        best.distance()
+                );
+            }
+        }
+    }
 
     private void printDtwTemporalCharacterization() {
 
