@@ -25,102 +25,146 @@ class LinearTemporalRegressionRealAudioTest {
                 24.70, 26.45
         };
 
-        int n = referenceTime.length;
+        System.out.println("---- LINEAR TEMPORAL REGRESSION ----");
+
+        RegressionResult allPoints =
+                calculateRegression(referenceTime, performanceTime, -1);
+
+        printResult("ALL POINTS", allPoints);
+
+        RegressionResult withoutOutlier =
+                calculateRegression(referenceTime, performanceTime, 6);
+
+        printResult("WITHOUT 14s OUTLIER", withoutOutlier);
+
+        System.out.printf(
+                Locale.US,
+                "RMSE improvement=%.3fs%n",
+                allPoints.rmse - withoutOutlier.rmse
+        );
+
+        assertTrue(Double.isFinite(allPoints.slope),
+                "La pendiente debe ser finita");
+
+        assertTrue(Double.isFinite(allPoints.intercept),
+                "El intercepto debe ser finito");
+
+        assertTrue(Double.isFinite(withoutOutlier.slope),
+                "La pendiente sin outlier debe ser finita");
+
+        assertTrue(Double.isFinite(withoutOutlier.intercept),
+                "El intercepto sin outlier debe ser finito");
+    }
+
+    private RegressionResult calculateRegression(
+            double[] referenceTime,
+            double[] performanceTime,
+            int excludedIndex) {
 
         double meanX = 0.0;
         double meanY = 0.0;
+        int count = 0;
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < referenceTime.length; i++) {
+            if (i == excludedIndex) {
+                continue;
+            }
+
             meanX += referenceTime[i];
             meanY += performanceTime[i];
+            count++;
         }
 
-        meanX /= n;
-        meanY /= n;
+        meanX /= count;
+        meanY /= count;
 
         double numerator = 0.0;
         double denominator = 0.0;
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < referenceTime.length; i++) {
+            if (i == excludedIndex) {
+                continue;
+            }
 
-            double dx =
-                    referenceTime[i] - meanX;
-
-            double dy =
-                    performanceTime[i] - meanY;
+            double dx = referenceTime[i] - meanX;
+            double dy = performanceTime[i] - meanY;
 
             numerator += dx * dy;
             denominator += dx * dx;
         }
 
-        double slope =
-                numerator / denominator;
-
-        double intercept =
-                meanY - slope * meanX;
+        double slope = numerator / denominator;
+        double intercept = meanY - slope * meanX;
 
         double squaredError = 0.0;
         double maxError = 0.0;
 
-        System.out.println(
-                "---- LINEAR TEMPORAL REGRESSION ----"
+        for (int i = 0; i < referenceTime.length; i++) {
+            if (i == excludedIndex) {
+                continue;
+            }
+
+            double predicted =
+                    slope * referenceTime[i] + intercept;
+
+            double error =
+                    performanceTime[i] - predicted;
+
+            double absError = Math.abs(error);
+
+            squaredError += error * error;
+            maxError = Math.max(maxError, absError);
+        }
+
+        double rmse = Math.sqrt(squaredError / count);
+
+        return new RegressionResult(
+                slope,
+                intercept,
+                rmse,
+                maxError
         );
+    }
+
+    private void printResult(
+            String label,
+            RegressionResult result) {
+
+        System.out.println();
+        System.out.println("---- " + label + " ----");
 
         System.out.printf(
                 Locale.US,
                 "performanceTime = %.4f * referenceTime + %.4f%n",
-                slope,
-                intercept
+                result.slope,
+                result.intercept
         );
-
-        for (int i = 0; i < n; i++) {
-
-            double predicted =
-                    slope * referenceTime[i]
-                            + intercept;
-
-            double error =
-                    performanceTime[i]
-                            - predicted;
-
-            double absError =
-                    Math.abs(error);
-
-            squaredError += error * error;
-
-            maxError =
-                    Math.max(maxError, absError);
-
-            System.out.printf(
-                    Locale.US,
-                    "ref=%5.2fs actual=%5.2fs predicted=%5.2fs error=%+6.3fs%n",
-                    referenceTime[i],
-                    performanceTime[i],
-                    predicted,
-                    error
-            );
-        }
-
-        double rmse =
-                Math.sqrt(
-                        squaredError / n
-                );
 
         System.out.printf(
                 Locale.US,
                 "rmse=%.3fs maxError=%.3fs%n",
-                rmse,
-                maxError
+                result.rmse,
+                result.maxError
         );
+    }
 
-        assertTrue(
-                Double.isFinite(slope),
-                "La pendiente debe ser finita"
-        );
+    private static class RegressionResult {
 
-        assertTrue(
-                Double.isFinite(intercept),
-                "El intercepto debe ser finito"
-        );
+        final double slope;
+        final double intercept;
+        final double rmse;
+        final double maxError;
+
+        RegressionResult(
+                double slope,
+                double intercept,
+                double rmse,
+                double maxError) {
+
+            this.slope = slope;
+            this.intercept = intercept;
+            this.rmse = rmse;
+            this.maxError = maxError;
+        }
     }
 }
