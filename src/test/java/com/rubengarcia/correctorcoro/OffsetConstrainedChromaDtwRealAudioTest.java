@@ -78,6 +78,81 @@ class OffsetConstrainedChromaDtwRealAudioTest {
                 result.alignments().isEmpty()
                         ? 0.0
                         : totalAbsOffset / result.alignments().size();
+        System.out.println("---- CHROMA DISTANCE VS TEMPORAL ERROR ----");
+
+        double[] thresholds = {0.05, 0.10, 0.20, 0.30, 0.50};
+
+        for (double threshold : thresholds) {
+            int matches = 0;
+            int goodTemporal = 0;
+            int badTemporal = 0;
+
+            for (Alignment alignment : result.alignments()) {
+                double offset =
+                        alignment.performanceTime()
+                                - alignment.referenceTime();
+
+                double absOffset = Math.abs(offset);
+
+                if (alignment.distance() <= threshold) {
+                    matches++;
+
+                    if (absOffset <= 0.500) {
+                        goodTemporal++;
+                    } else {
+                        badTemporal++;
+                    }
+                }
+            }
+
+            double badPercentage =
+                    matches == 0
+                            ? 0.0
+                            : 100.0 * badTemporal / matches;
+
+            System.out.printf(
+                    Locale.US,
+                    "distance<=%.2f matches=%d good(<=0.500s)=%d bad(>0.500s)=%d bad%%=%.1f%%%n",
+                    threshold,
+                    matches,
+                    goodTemporal,
+                    badTemporal,
+                    badPercentage
+            );
+        }
+
+        System.out.println();
+        System.out.println("---- LOW DISTANCE / LARGE TEMPORAL ERROR ----");
+
+        int printed = 0;
+
+        for (Alignment alignment : result.alignments()) {
+            double offset =
+                    alignment.performanceTime()
+                            - alignment.referenceTime();
+
+            double absOffset = Math.abs(offset);
+
+            if (alignment.distance() <= 0.10
+                    && absOffset > 0.500) {
+
+                System.out.printf(
+                        Locale.US,
+                        "ref=%5.2fs perf=%5.2fs offset=%+6.3fs distance=%.4f%n",
+                        alignment.referenceTime(),
+                        alignment.performanceTime(),
+                        offset,
+                        alignment.distance()
+                );
+
+                printed++;
+
+                if (printed >= 20) {
+                    break;
+                }
+            }
+        }
+
 
         System.out.println("---- DTW AFTER GLOBAL OFFSET COMPENSATION ----");
 
