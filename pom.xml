@@ -2,6 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -14,6 +15,7 @@
     <groupId>com.rubengarcia.correctorcoro</groupId>
     <artifactId>corrector-coro</artifactId>
     <version>0.1.0-SNAPSHOT</version>
+
     <name>corrector-coro</name>
     <description>
         Spike de validacion: extraccion de pitch (TarsosDSP) + alineacion DTW
@@ -25,7 +27,7 @@
         <java.version>21</java.version>
     </properties>
 
-    <!-- TarsosDSP NO esta en Maven Central: vive en el repositorio propio del autor. -->
+    <!-- TarsosDSP NO esta en Maven Central -->
     <repositories>
         <repository>
             <id>be.0110.repo-releases</id>
@@ -35,6 +37,7 @@
     </repositories>
 
     <dependencies>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -65,11 +68,27 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
+        <!-- Reactor Test: StepVerifier / VirtualTime -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit 5 + Mockito + Spring Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- HTTP server simulado para tests de WebClient -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -80,4 +99,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>
