@@ -1,12 +1,14 @@
 package com.rubengarcia.correctorcoro.speechmatics;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.io.File;
 import java.time.Duration;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SpeechmaticsService {
@@ -34,8 +36,15 @@ public class SpeechmaticsService {
 
     private Mono<String> pollUntilCompleted(String jobId) {
         return client.getJobStatus(jobId)
+                .doOnNext(status ->
+                        log.info("Speechmatics job {} status={}",
+                                jobId,
+                                status.job().status()))
                 .flatMap(status -> switch (status.job().status()) {
-                    case "done" -> client.getTranscript(jobId);
+                    case "done" -> {
+                        log.info("Speechmatics job {} completed", jobId);
+                        yield client.getTranscript(jobId);
+                    }
 
                     case "rejected", "deleted", "expired" ->
                             Mono.error(new IllegalStateException(

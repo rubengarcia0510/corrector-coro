@@ -1,6 +1,7 @@
 package com.rubengarcia.correctorcoro.speechmatics;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
@@ -11,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.File;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class SpeechmaticsClient {
@@ -60,6 +62,20 @@ public class SpeechmaticsClient {
                 .uri("/v2/jobs/{jobId}/transcript?format=txt", jobId)
                 .header("Authorization", "Bearer " + apiKey)
                 .retrieve()
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .doOnSubscribe(subscription ->
+                        log.info("Speechmatics transcript request started: jobId={}", jobId))
+                .doOnNext(transcript ->
+                        log.info("Speechmatics transcript received: jobId={}, length={}",
+                                jobId,
+                                transcript.length()))
+                .doOnSuccess(transcript ->
+                        log.info("Speechmatics transcript request completed: jobId={}, empty={}",
+                                jobId,
+                                transcript == null))
+                .doOnError(error ->
+                        log.error("Speechmatics transcript failed: jobId={}",
+                                jobId,
+                                error));
     }
 }
