@@ -37,17 +37,20 @@ public class SpeechmaticsController {
                         file.transferTo(tempFile)
                                 .then(service.transcribe(tempFile.toFile(), language))
                                 .map(ResponseEntity::ok)
-                                .doFinally(signal -> deleteTempFile(tempFile))
+                                .flatMap(response ->
+                                        deleteTempFile(tempFile)
+                                                .thenReturn(response)
+                                )
                 );
     }
 
-    private void deleteTempFile(Path tempFile) {
-        Mono.fromRunnable(() -> {
+    private Mono<Void> deleteTempFile(Path tempFile) {
+        return Mono.fromRunnable(() -> {
             try {
                 Files.deleteIfExists(tempFile);
             } catch (Exception ignored) {
                 // La limpieza del temporal no debe alterar la respuesta.
             }
-        }).subscribeOn(Schedulers.boundedElastic()).subscribe();
+        }).subscribeOn(Schedulers.boundedElastic()).then();
     }
 }
