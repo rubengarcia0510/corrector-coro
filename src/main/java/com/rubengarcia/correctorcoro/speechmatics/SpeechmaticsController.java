@@ -27,21 +27,20 @@ public class SpeechmaticsController {
             @RequestPart("file") FilePart file,
             @RequestParam(defaultValue = "es") String language
     ) {
-        return Mono.fromCallable(() ->
-                        Files.createTempFile(
-                                "speechmatics-",
-                                "-" + file.filename()
-                        ))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(tempFile ->
-                        file.transferTo(tempFile)
-                                .then(service.transcribe(tempFile.toFile(), language))
-                                .map(ResponseEntity::ok)
-                                .flatMap(response ->
-                                        deleteTempFile(tempFile)
-                                                .thenReturn(response)
-                                )
-                );
+        return Mono.usingWhen(
+                Mono.fromCallable(() ->
+                                Files.createTempFile(
+                                        "speechmatics-",
+                                        "-" + file.filename()
+                                ))
+                        .subscribeOn(Schedulers.boundedElastic()),
+                tempFile -> file.transferTo(tempFile)
+                        .then(service.transcribe(tempFile.toFile(), language))
+                        .map(ResponseEntity::ok),
+                this::deleteTempFile,
+                (tempFile, error) -> deleteTempFile(tempFile),
+                this::deleteTempFile
+        );
     }
 
     private Mono<Void> deleteTempFile(Path tempFile) {
