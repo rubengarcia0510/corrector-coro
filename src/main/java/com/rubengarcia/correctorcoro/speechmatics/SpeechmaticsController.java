@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,7 +28,11 @@ public class SpeechmaticsController {
             @RequestParam(defaultValue = "es") String language
     ) {
         return Mono.fromCallable(() ->
-                        Files.createTempFile("speechmatics-", "-" + file.filename()))
+                        Files.createTempFile(
+                                "speechmatics-",
+                                "-" + file.filename()
+                        ))
+                .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(tempFile ->
                         file.transferTo(tempFile)
                                 .then(service.transcribe(tempFile.toFile(), language))
@@ -37,10 +42,12 @@ public class SpeechmaticsController {
     }
 
     private void deleteTempFile(Path tempFile) {
-        try {
-            Files.deleteIfExists(tempFile);
-        } catch (Exception ignored) {
-            // La limpieza del temporal no debe alterar la respuesta.
-        }
+        Mono.fromRunnable(() -> {
+            try {
+                Files.deleteIfExists(tempFile);
+            } catch (Exception ignored) {
+                // La limpieza del temporal no debe alterar la respuesta.
+            }
+        }).subscribeOn(Schedulers.boundedElastic()).subscribe();
     }
 }
