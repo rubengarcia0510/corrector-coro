@@ -40,6 +40,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- WebClient para integración con Speechmatics -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
         <!-- TarsosDSP: algoritmos de deteccion de pitch (YIN / MPM) -->
         <dependency>
             <groupId>be.tarsos.dsp</groupId>
