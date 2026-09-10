@@ -10,18 +10,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Repository;
 
+import reactor.core.publisher.Mono;
+
 @Repository
 public class ReferenceAudioRepository {
 
     private final Map<String, File> references = new ConcurrentHashMap<>();
 
-    public void save(String coroId, FilePart audio) throws IOException {
+    public Mono<Void> save(String coroId, FilePart audio) throws IOException {
         Path directory = Files.createTempDirectory("corrector-coro-references-");
         Path file = directory.resolve("reference-audio");
 
-        audio.transferTo(file).block();
-
-        references.put(coroId, file.toFile());
+        return audio.transferTo(file)
+                .doOnSuccess(ignored -> references.put(coroId, file.toFile()));
     }
 
     public File find(String coroId) {

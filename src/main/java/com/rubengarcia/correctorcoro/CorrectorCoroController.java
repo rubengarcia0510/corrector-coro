@@ -1,5 +1,7 @@
 package com.rubengarcia.correctorcoro;
 
+import reactor.core.publisher.Mono;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -148,33 +150,34 @@ private final ReferenceAudioRepository referenceAudioRepository;
     }
 
     @PostMapping("/coros/{id}/referencia")
-    public ResponseEntity<Void> subirReferencia(
+    public Mono<ResponseEntity<Void>> subirReferencia(
             @PathVariable("id") String coroId,
             @RequestPart("audio") FilePart audio
     ) throws Exception {
-        referenceAudioRepository.save(coroId, audio);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return referenceAudioRepository.save(coroId, audio)
+                .thenReturn(ResponseEntity.status(HttpStatus.CREATED).build());
     }
 
     @PostMapping("/coros/{id}/ensayos")
-    public ResponseEntity<String> subirEnsayo(
+    public Mono<ResponseEntity<String>> subirEnsayo(
             @PathVariable("id") String coroId,
             @RequestPart("audio") FilePart audio
     ) throws Exception {
         File referenceAudio = referenceAudioRepository.find(coroId);
 
         if (referenceAudio == null) {
-            return ResponseEntity.notFound().build();
+            return Mono.just(ResponseEntity.<String>notFound().build());
         }
 
-        File performanceAudio = performanceAudioRepository.save(audio);
+        return performanceAudioRepository.save(audio)
+                .map(performanceAudio -> {
+                    String jobId = analysisJobService.start(
+                            referenceAudio,
+                            performanceAudio
+                    );
 
-        String jobId = analysisJobService.start(
-                referenceAudio,
-                performanceAudio
-        );
-
-        return ResponseEntity.accepted().body(jobId);
+                    return ResponseEntity.accepted().body(jobId);
+                });
     }
 
     @GetMapping("/ensayos/{jobId}/estado")
