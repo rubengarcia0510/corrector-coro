@@ -74,7 +74,7 @@ private final ReferenceAudioRepository referenceAudioRepository;
      * curl -F "audio=@nota_desafinada.wav" http://localhost:8080/spike/debug-pitch
      */
     @PostMapping("/spike/debug-pitch")
-    public ResponseEntity<Object> debugPitch(@RequestPart("audio") FilePart audio) throws Exception {
+    public ResponseEntity<Object> debugPitch(@RequestParam("audio") MultipartFile audio) throws Exception {
         File archivoAudio = aArchivoTemporal(audio, "audio");
         try {
             List<PitchPoint> pitchCurva = pitchExtractor.extraerPitch(archivoAudio);
@@ -94,7 +94,7 @@ private final ReferenceAudioRepository referenceAudioRepository;
 
     @PostMapping("/spike/analizar")
     public ResponseEntity<List<AnalizadorAfinacionAbsoluta.TramoDesafinado>> analizar(
-            @RequestPart("audio") FilePart audio
+            @RequestParam("audio") MultipartFile audio
     ) throws Exception {
         File archivoAudio = aArchivoTemporal(audio, "audio");
         try {
