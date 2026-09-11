@@ -16,7 +16,32 @@ public class ChromaDtwAligner {
      * tempo differences while avoiding the O(n*m) memory consumption
      * of a full DTW cost matrix.
      */
-    private static final double BAND_SECONDS = 4.0;
+    private static final double DEFAULT_BAND_SECONDS = 0.5;
+    private static final double DEFAULT_TEMPORAL_PENALTY_LAMBDA = 0.0;
+
+    private final double bandSeconds;
+    private final double temporalPenaltyLambda;
+
+    public ChromaDtwAligner() {
+        this(DEFAULT_BAND_SECONDS, DEFAULT_TEMPORAL_PENALTY_LAMBDA);
+    }
+
+    ChromaDtwAligner(double bandSeconds) {
+        this(bandSeconds, DEFAULT_TEMPORAL_PENALTY_LAMBDA);
+    }
+
+    ChromaDtwAligner(double bandSeconds, double temporalPenaltyLambda) {
+        if (bandSeconds <= 0.0) {
+            throw new IllegalArgumentException("Band seconds must be positive");
+        }
+        if (temporalPenaltyLambda < 0.0) {
+            throw new IllegalArgumentException(
+                    "Temporal penalty lambda must not be negative"
+            );
+        }
+        this.bandSeconds = bandSeconds;
+        this.temporalPenaltyLambda = temporalPenaltyLambda;
+    }
 
     private static final byte DIAGONAL = 0;
     private static final byte UP = 1;
@@ -40,19 +65,19 @@ public class ChromaDtwAligner {
         double referenceStep = estimateFrameStep(reference);
         double performanceStep = estimateFrameStep(performance);
 
-        double bandSeconds = Math.max(
-                BAND_SECONDS,
+        double effectiveBandSeconds = Math.max(
+                bandSeconds,
                 Math.max(referenceStep, performanceStep) * 2.0
         );
 
         int radiusReference = Math.max(
                 1,
-                (int) Math.ceil(bandSeconds / referenceStep)
+                (int) Math.ceil(effectiveBandSeconds / referenceStep)
         );
 
         int radiusPerformance = Math.max(
                 1,
-                (int) Math.ceil(bandSeconds / performanceStep)
+                (int) Math.ceil(effectiveBandSeconds / performanceStep)
         );
 
         /*
@@ -127,6 +152,19 @@ public class ChromaDtwAligner {
                         performance.get(j - 1).chroma()
                 );
 
+                double referenceRelativeTime =
+                        reference.get(i - 1).timestampSec() - referenceStart;
+
+                double performanceRelativeTime =
+                        performance.get(j - 1).timestampSec() - performanceStart;
+
+                double temporalDeviation = Math.abs(
+                        performanceRelativeTime - referenceRelativeTime
+                );
+
+                double temporalPenalty =
+                        temporalPenaltyLambda * temporalDeviation;
+
                 double diagonal = previousCosts[j - 1];
                 double up = previousCosts[j];
                 double left = currentCosts[j - 1];
@@ -145,7 +183,7 @@ public class ChromaDtwAligner {
                     direction = LEFT;
                 }
 
-                currentCosts[j] = distance + best;
+                currentCosts[j] = distance + temporalPenalty + best;
                 directions[i][j - start] = direction;
             }
 

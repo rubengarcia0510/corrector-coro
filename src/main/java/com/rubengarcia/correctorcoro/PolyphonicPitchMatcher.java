@@ -12,7 +12,23 @@ public class PolyphonicPitchMatcher {
      * Máxima diferencia musical permitida para considerar
      * que dos componentes representan la misma nota.
      */
-    private static final double MAX_MATCH_CENTS = 100.0;
+    private static final double DEFAULT_MAX_MATCH_CENTS = 100.0;
+
+    private final double maxMatchCents;
+
+    public PolyphonicPitchMatcher() {
+        this(DEFAULT_MAX_MATCH_CENTS);
+    }
+
+    PolyphonicPitchMatcher(double maxMatchCents) {
+        if (maxMatchCents <= 0.0) {
+            throw new IllegalArgumentException(
+                    "maxMatchCents must be greater than zero"
+            );
+        }
+
+        this.maxMatchCents = maxMatchCents;
+    }
 
     public List<PolyphonicPitchMatch> match(
             List<SpectralPitch> referencePeaks,
@@ -93,7 +109,7 @@ public class PolyphonicPitchMatcher {
 
             double absCents = Math.abs(cents);
 
-            if (absCents > MAX_MATCH_CENTS) {
+            if (absCents > maxMatchCents) {
                 continue;
             }
 

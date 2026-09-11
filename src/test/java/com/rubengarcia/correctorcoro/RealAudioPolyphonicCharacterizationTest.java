@@ -55,7 +55,7 @@ class RealAudioPolyphonicCharacterizationTest {
             List<SpectralFrame> performanceFrames) {
 
         TarsosChromaExtractor chromaExtractor = new TarsosChromaExtractor();
-        ChromaDtwAligner dtwAligner = new ChromaDtwAligner();
+        ChromaDtwAligner dtwAligner = new ChromaDtwAligner(0.5, 0.5);
         PolyphonicPitchMatcher matcher = new PolyphonicPitchMatcher();
 
         List<ChromaFrame> referenceChroma =
@@ -264,7 +264,7 @@ class RealAudioPolyphonicCharacterizationTest {
     private void printDtwTemporalCharacterization() {
 
         TarsosChromaExtractor chromaExtractor = new TarsosChromaExtractor();
-        ChromaDtwAligner dtwAligner = new ChromaDtwAligner();
+        ChromaDtwAligner dtwAligner = new ChromaDtwAligner(0.5, 0.5);
 
         List<ChromaFrame> reference =
                 chromaExtractor.extract(new File("regina-ref-30s.wav"));
