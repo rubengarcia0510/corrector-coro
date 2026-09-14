@@ -147,6 +147,11 @@ private final ReferenceAudioRepository referenceAudioRepository;
         }
     }
 
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("OK");
+    }
+
     @PostMapping("/coros/{id}/referencia")
     public ResponseEntity<Void> subirReferencia(
             @PathVariable("id") String coroId,
