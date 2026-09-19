@@ -21,10 +21,29 @@ public class ReferenceAudioRepository {
 
         audio.transferTo(file).block();
 
-        references.put(coroId, file.toFile());
+        File newReference = file.toFile();
+        File previousReference = references.put(coroId, newReference);
+
+        delete(previousReference);
     }
 
     public File find(String coroId) {
         return references.get(coroId);
+    }
+
+    private void delete(File file) {
+        if (file == null) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(file.toPath());
+            Path directory = file.toPath().getParent();
+            if (directory != null) {
+                Files.deleteIfExists(directory);
+            }
+        } catch (IOException ignored) {
+            // Best-effort cleanup. Keep the active reference available.
+        }
     }
 }
