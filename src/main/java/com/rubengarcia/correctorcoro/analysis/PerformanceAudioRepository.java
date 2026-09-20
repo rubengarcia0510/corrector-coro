@@ -19,4 +19,21 @@ public class PerformanceAudioRepository {
 
         return file.toFile();
     }
+
+    public void delete(File file) {
+        if (file == null) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(file.toPath());
+            Path directory = file.toPath().getParent();
+            if (directory != null) {
+                Files.deleteIfExists(directory);
+            }
+        } catch (IOException ignored) {
+            // Best-effort cleanup. Analysis result must not be lost because
+            // temporary-file deletion failed.
+        }
+    }
 }

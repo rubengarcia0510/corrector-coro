@@ -15,15 +15,18 @@ public class AnalysisJobService {
 
     private final AnalysisJobRepository repository;
     private final ChromaIntonationAnalyzer analyzer;
+    private final PerformanceAudioRepository performanceAudioRepository;
     private final Executor executor;
 
     public AnalysisJobService(
             AnalysisJobRepository repository,
             ChromaIntonationAnalyzer analyzer,
+            PerformanceAudioRepository performanceAudioRepository,
             Executor executor
     ) {
         this.repository = repository;
         this.analyzer = analyzer;
+        this.performanceAudioRepository = performanceAudioRepository;
         this.executor = executor;
     }
 
@@ -76,6 +79,8 @@ public class AnalysisJobService {
                     List.of(),
                     e.getMessage()
             ));
+        } finally {
+            performanceAudioRepository.delete(performanceAudio);
         }
     }
 }
